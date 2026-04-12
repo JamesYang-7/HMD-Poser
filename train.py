@@ -20,6 +20,8 @@ def main():
     args = parse_args()
     configs = load_config(args.config)
     out_dir, LOG, train_summary_writer = add_log(configs)
+    with open(f"out_dir.txt", "w") as f:
+        f.write(out_dir)
     dst_file = os.path.join(out_dir, os.path.basename(args.config))
     os.system('cp {} {}'.format(args.config, dst_file))
     
@@ -107,6 +109,7 @@ def main():
     )
     
     training_batches_per_epoch = len(train_dataloader)
+    print("training_batches_per_epoch:", training_batches_per_epoch)
     last_epoch = 0
     lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
         optimizer,

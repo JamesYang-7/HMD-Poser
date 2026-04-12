@@ -59,7 +59,8 @@ class HMDIMUModel(nn.Module):
             configs.model_params.block_num
             ).to(device)
         support_dir = configs.support_dir
-        subject_gender = "neutral"
+        # subject_gender = "neutral"
+        subject_gender = "male"
         bm_fname = os.path.join(support_dir, 'smplh/{}/model.npz'.format(subject_gender))
         dmpl_fname = os.path.join(support_dir, 'dmpls/{}/model.npz'.format(subject_gender))
         num_betas = 16 # number of body parameters
@@ -121,6 +122,7 @@ class HMDIMUModel(nn.Module):
     def forward(self, sparse_input, do_fk=True):
         batch_size, time_length = sparse_input.shape[0], sparse_input.shape[1]
         pred_pose, pred_shapes = self.netG(sparse_input)
+        pred_shapes = torch.zeros_like(pred_shapes) # set to default shape
         rotation_local_matrot = utils_transform.sixd2matrot(pred_pose.reshape(-1, 6)).reshape(batch_size*time_length, 22, 3, 3)
         rotation_global_matrot = forward_kinematics_R(rotation_local_matrot, self.bm.kintree_table[0][:22].long()).view(batch_size, time_length, 22, 3, 3)
         rotation_global_r6d = utils_transform.matrot2sixd(rotation_global_matrot.reshape(-1, 3, 3)).reshape(batch_size, time_length, 22*6)

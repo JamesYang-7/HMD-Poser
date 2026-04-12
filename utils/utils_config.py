@@ -1,7 +1,7 @@
 import yaml
 from easydict import EasyDict as edict
 from utils.console_logger import ConsoleLogger
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 
 def load_config(path):
     with open(path) as fin:

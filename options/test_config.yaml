@@ -1,14 +1,16 @@
 task: "HMD_IMU_Human_Motion_Estimation"
 
 model_name: "HMD_imu_HME_Universe"
-dataset_path: "./prepare_data/amass_protocol1/"
+dataset_path: "./datasets_processed/amass_p1/"
 support_dir: "./body_models/"
-resume_model: 'path_of_trained_model'
+resume_model: 'path_of_trained_model' ##### to be filled in when testing #####
 manual_seed: null
-compatible_inputs: ['HMD', 'HMD_2IMUs', 'HMD_3IMUs'] 
+compatible_inputs: ['HMD'] 
 sparse_dim: 135
 input_motion_length: 40
 train_dataset_repeat_times: 10
+save_dir: "./results/test/"
+save_output: true
 
 model_params:
   number_layer: 3
@@ -21,7 +23,7 @@ train_config:
   epochs: 400
   val_interval: 10
   num_workers: 4
-  batch_size: 256
+  batch_size: 128
   log_interval: 5
 
 optimizer_config:

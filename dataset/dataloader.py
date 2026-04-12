@@ -1,6 +1,6 @@
 import glob
 import os
-
+from tqdm import tqdm
 import torch
 from torch.utils.data import Dataset
 
@@ -18,9 +18,10 @@ def get_path(dataset_path, split):
 def load_data(dataset_path, split, **kwargs):
     motion_list = get_path(dataset_path, split)
     input_motion_length = kwargs["input_motion_length"]
-    motion_raw_data = []
-    for data_i in motion_list:
-        motion_raw_data.extend(torch.load(data_i))
+    # motion_raw_data = []
+    # for data_i in motion_list:
+    #     motion_raw_data.extend(torch.load(data_i))
+    motion_raw_data = [torch.load(data_i) for data_i in tqdm(motion_list)]
     
     valid_motion_data = []
     tmp_data_list = []
@@ -38,7 +39,8 @@ def load_data(dataset_path, split, **kwargs):
             'gt_local_pose': gt_local_pose,
             'gt_global_pose': gt_global_pose,
             'gt_positions': gt_positions,
-            'gt_betas': gt_betas
+            'gt_betas': gt_betas,
+            'filepath': data['filepath']
         })
     return valid_motion_data
     

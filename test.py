@@ -9,6 +9,7 @@ from utils import utils_transform
 import math
 from utils.metrics import get_metric_function
 import prettytable as pt
+import os
 
 #####################
 RADIANS_TO_DEGREES = 360.0 / (2 * math.pi)
@@ -58,9 +59,16 @@ def main():
         input_motion_length=configs.input_motion_length)
 
     model = HMDIMUModel(configs, device)
+    # Load trained model
+    with open("out_dir.txt", "r") as f:
+        configs.resume_model = f.readline().strip() + "/epoch_with_best_trainloss.pt"
     model.load(configs.resume_model)
     print(f"successfully resume checkpoint in {configs.resume_model}")
     model.eval()
+
+    if configs.save_output:
+        os.makedirs(configs.save_dir, exist_ok=True)
+        print(f"Results will be saved to {configs.save_dir}")
 
     # Print the value for all the metrics
     tb = pt.PrettyTable()
@@ -84,7 +92,7 @@ def main():
 
         
         with torch.no_grad():
-            for _, (input_feat, gt_local_pose, gt_global_pose, gt_positions, head_global_trans) in tqdm(enumerate(test_dataloader)):
+            for idx, (input_feat, gt_local_pose, gt_global_pose, gt_positions, head_global_trans) in tqdm(enumerate(test_dataloader)):
                 input_feat, gt_local_pose, gt_global_pose, gt_positions, head_global_trans = input_feat.to(device).float(), \
                     gt_local_pose.to(device).float(), gt_global_pose.to(device).float(), \
                         gt_positions.to(device).float(), head_global_trans.to(device).float()
@@ -135,6 +143,14 @@ def main():
                 
                 for key in eval_log:
                     log[key] += eval_log[key]
+                
+                if configs.save_output:
+                    output_path = os.path.join(configs.save_dir, f"{idx+1}.pt")
+                    torch.save({
+                        "pred_local_pose": pred_local_pose,
+                        "predicted_position": predicted_position,
+                        "filepath": test_datas[idx]['filepath'] if 'filepath' in test_datas[0] else None,
+                    }, output_path)
             
         tb.add_row([input_type] + 
             [ '%.2f' % (log[metric] / len(test_dataloader) * metrics_coeffs[metric]) for metric in pred_metrics] +

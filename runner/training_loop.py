@@ -20,7 +20,7 @@ def train_loop(configs, device, model, loss_func, optimizer, \
 
         one_epoch_root_loss, one_epoch_lpose_loss, one_epoch_gpose_loss, one_epoch_joint_loss, \
             one_epoch_acc_loss, one_epoch_shape_loss, one_epoch_total_loss = [], [], [], [], [], [], []
-        for batch_idx, (input_feat, gt_local_pose, gt_global_pose, gt_positions, gt_betas) in enumerate(train_loader):
+        for batch_idx, (input_feat, gt_local_pose, gt_global_pose, gt_positions, gt_betas) in tqdm(enumerate(train_loader)):
             global_step += 1
             optimizer.zero_grad()
             batch_start = time.time()
@@ -55,21 +55,21 @@ def train_loop(configs, device, model, loss_func, optimizer, \
             one_epoch_total_loss.append(total_loss.item())
             batch_time = time.time() - batch_start
             
-            if batch_idx % configs.train_config.log_interval == 0:
-                batch_info = {
-                    'type': 'train',
-                    'epoch': epoch + 1, 'batch': batch_idx, 'n_batches': len(train_loader),
-                    'time': round(batch_time, 5),
-                    'lr': round(lr, 8),
-                    'loss_total': round(float(total_loss.item()), 3),
-                    'root_orientation_loss': round(float(root_orientation_loss.item()), 3),
-                    'local_pose_loss': round(float(local_pose_loss.item()), 3),
-                    'global_pose_loss': round(float(global_pose_loss.item()), 3),
-                    'joint_3d_loss': round(float(joint_position_loss.item()), 3),
-                    'smooth_loss': round(float(accel_loss.item()), 3),
-                    'shape_loss': round(float(shape_loss.item()), 3)
-                }
-                LOG.info(batch_info)
+            # if batch_idx % configs.train_config.log_interval == 0:
+            #     batch_info = {
+            #         'type': 'train',
+            #         'epoch': epoch + 1, 'batch': batch_idx, 'n_batches': len(train_loader),
+            #         'time': round(batch_time, 5),
+            #         'lr': round(lr, 8),
+            #         'loss_total': round(float(total_loss.item()), 3),
+            #         'root_orientation_loss': round(float(root_orientation_loss.item()), 3),
+            #         'local_pose_loss': round(float(local_pose_loss.item()), 3),
+            #         'global_pose_loss': round(float(global_pose_loss.item()), 3),
+            #         'joint_3d_loss': round(float(joint_position_loss.item()), 3),
+            #         'smooth_loss': round(float(accel_loss.item()), 3),
+            #         'shape_loss': round(float(shape_loss.item()), 3)
+            #     }
+            #     LOG.info(batch_info)
         one_epoch_root_loss = torch.tensor(one_epoch_root_loss).mean().item()
         one_epoch_lpose_loss = torch.tensor(one_epoch_lpose_loss).mean().item()
         one_epoch_gpose_loss = torch.tensor(one_epoch_gpose_loss).mean().item()
