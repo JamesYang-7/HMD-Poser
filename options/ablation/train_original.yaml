@@ -1,4 +1,4 @@
-task: "hmd_poser_original"
+task: "hmd_poser_original_ap1"
 
 # Ablation baseline: the original HMD-Poser network (unidirectional LSTM
 # temporal + Transformer spatial). Same architecture as options/train_config.yaml

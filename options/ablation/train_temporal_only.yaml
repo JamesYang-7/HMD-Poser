@@ -1,4 +1,4 @@
-task: "hmd_poser_temporal_only"
+task: "hmd_poser_temporal_only_ap1"
 
 # Ablation: remove spatial (Transformer) module entirely, keep temporal LSTM only
 model_name: "HMD_imu_HME_TemporalOnly"

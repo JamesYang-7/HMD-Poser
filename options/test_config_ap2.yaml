@@ -1,0 +1,4 @@
+_inherit: test_config.yaml
+
+task: "hmd_poser_ap2"
+dataset_path: "./datasets_processed/amass_p2/"

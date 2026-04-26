@@ -1,4 +1,4 @@
-task: "hmd_poser_temporal_transformer"
+task: "hmd_poser_temporal_transformer_ap1"
 
 # Ablation: replace per-sensor LSTM with a causal Transformer temporal module
 model_name: "HMD_imu_HME_TemporalTransformer"

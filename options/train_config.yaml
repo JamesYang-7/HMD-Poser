@@ -1,4 +1,4 @@
-task: "hmd_poser"
+task: "hmd_poser_ap1"
 
 model_name: "HMD_imu_HME_Universe"
 dataset_path: "./datasets_processed/amass_p1/"

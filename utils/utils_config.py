@@ -1,12 +1,43 @@
+import os
 import yaml
 from easydict import EasyDict as edict
 from utils.console_logger import ConsoleLogger
 from torch.utils.tensorboard import SummaryWriter
 
-def load_config(path):
+
+# Top-level YAML key that names a parent config to inherit from. The parent
+# is resolved relative to the child file's directory (or absolute). Values
+# in the child override the parent; nested dicts are deep-merged. Lists are
+# replaced wholesale (so e.g. lr_decay: [200] in the child fully replaces
+# lr_decay: [300] in the parent — no element merging).
+_INHERIT_KEY = "_inherit"
+
+
+def _deep_merge(base, override):
+    if isinstance(base, dict) and isinstance(override, dict):
+        merged = dict(base)
+        for k, v in override.items():
+            merged[k] = _deep_merge(merged[k], v) if k in merged else v
+        return merged
+    return override
+
+
+def _load_yaml_with_inherit(path):
+    path = os.path.abspath(path)
     with open(path) as fin:
-        config = edict(yaml.safe_load(fin))
-    return config
+        cfg = yaml.safe_load(fin) or {}
+    parent_ref = cfg.pop(_INHERIT_KEY, None)
+    if parent_ref is None:
+        return cfg
+    parent_path = parent_ref if os.path.isabs(parent_ref) else os.path.join(
+        os.path.dirname(path), parent_ref
+    )
+    parent_cfg = _load_yaml_with_inherit(parent_path)
+    return _deep_merge(parent_cfg, cfg)
+
+
+def load_config(path):
+    return edict(_load_yaml_with_inherit(path))
 
 def add_log(configs, log_dir=None):
     LOG = ConsoleLogger(configs.task, 'train', log_dir=log_dir)

@@ -1,4 +1,4 @@
-task: "hmd_poser_no_temporal_mix"
+task: "hmd_poser_no_temporal_mix_ap1"
 
 # Capacity-matched ablation: per-frame MLP (no temporal mixing) + spatial Transformer.
 # Sliding-window eval.
@@ -6,7 +6,7 @@ model_name: "HMD_imu_HME_NoTemporalMix"
 dataset_path: "./datasets_processed/amass_p1/"
 support_dir: "./body_models/"
 # Filled automatically by run_ablation.py after training (checkpoint_latest.pt, epoch 400)
-resume_model: "/home/yy/Code/HMD-Poser/experiments/hmd_poser_no_temporal_mix_2026-04-14-15-34-02/checkpoint_latest.pt"
+resume_model: "/home/yy/Code/HMD-Poser/experiments/hmd_poser_no_temporal_mix_ap1_2026-04-14-15-34-02/checkpoint_latest.pt"
 manual_seed: null
 compatible_inputs: ['HMD']
 sparse_dim: 135

@@ -18,7 +18,7 @@ python prepare_data_male_unshaped.py  # Variant for male subjects
 ```bash
 python train.py --config ./options/train_config.yaml
 ```
-Saves checkpoints to `experiments/<task>_<timestamp>/`, where `<task>` comes from the `task` field in the YAML (e.g., `hmd_poser` for the main config, `hmd_poser_temporal_transformer` for that ablation variant).
+Saves checkpoints to `experiments/<task>_<timestamp>/`, where `<task>` comes from the `task` field in the YAML. Task names carry a dataset suffix immediately before the timestamp: `_ap1` for AMASS Protocol 1, `_ap2` for Protocol 2 (e.g., `hmd_poser_ap1` for the main config, `hmd_poser_temporal_transformer_ap1` for that ablation variant on P1).
 
 ### Testing / Evaluation
 ```bash

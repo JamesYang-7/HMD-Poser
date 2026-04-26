@@ -1,6 +1,8 @@
 import torch
 import time
 import argparse
+import csv
+import numpy as np
 from utils.utils_config import load_config
 from dataset.dataloader import load_data
 from model.hmd_imu_model import HMDIMUModel
@@ -47,8 +49,38 @@ metrics_coeffs = {
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True, help="Path, where config file is stored")
+    parser.add_argument(
+        "--skip-frames", type=int, default=-1,
+        help="Drop the first N frames of every sequence before computing a "
+             "second 'skip-N' aggregate alongside the always-on skip-0 "
+             "(full-sequence) aggregate. Both share the same model rollout. "
+             "Sequences with seq_len <= N+3 are excluded from the skip-N "
+             "aggregate but remain in skip-0. Default -1 auto-picks "
+             "input_motion_length - 1 (the warm-up frames before sliding "
+             "window starts producing single-frame predictions). Pass 0 to "
+             "disable the secondary aggregate.",
+    )
     args = parser.parse_args()
     return args
+
+
+def compute_seq_metrics(
+    predicted_position, predicted_angle, predicted_root_angle,
+    gt_position, gt_angle, gt_root_angle,
+    upper_index, lower_index, fps,
+):
+    eval_log = {}
+    for metric in all_metrics:
+        eval_log[metric] = (
+            get_metric_function(metric)(
+                predicted_position, predicted_angle, predicted_root_angle,
+                gt_position, gt_angle, gt_root_angle,
+                upper_index, lower_index, fps=fps,
+            )
+            .cpu()
+            .numpy()
+        )
+    return eval_log
 
 
 def prepare_input_feat(input_feat, input_type):
@@ -166,11 +198,16 @@ def main():
     args = parse_args()
     configs = load_config(args.config)
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    
+
     print(f"Loading test data with window length: {configs.input_motion_length}")
     batch_size = configs.train_config.batch_size
-    test_datas = load_data(configs.dataset_path, "test", 
+    test_datas = load_data(configs.dataset_path, "test",
         input_motion_length=configs.input_motion_length)
+
+    skip_n = args.skip_frames
+    if skip_n < 0:
+        skip_n = configs.input_motion_length - 1
+    print(f"Skip-N eval: N = {skip_n} (skip-0 always reported)")
 
     model = HMDIMUModel(configs, device)
     # Load trained model
@@ -183,6 +220,19 @@ def main():
     print(f"Successfully resumed checkpoint from {configs.resume_model}")
     model.eval()
 
+    # Derive run root from resume_model, mirroring VR_Pose_Pred's RunPaths
+    # convention: ckpt at <run>/<ckpts|checkpoints>/<file>.pt → run_root is
+    # the grandparent; otherwise the immediate parent.
+    ckpt_dir = os.path.dirname(os.path.abspath(configs.resume_model))
+    if os.path.basename(ckpt_dir) in ("ckpts", "checkpoints"):
+        run_root = os.path.dirname(ckpt_dir)
+    else:
+        run_root = ckpt_dir
+    eval_dir = os.path.join(run_root, "eval")
+    if configs.save_output:
+        os.makedirs(eval_dir, exist_ok=True)
+        print(f"Eval outputs will be saved to: {eval_dir}")
+
     # Print the value for all the metrics
     tb = pt.PrettyTable()
     tb.field_names = ['Input_type'] + pred_metrics + gt_metrics
@@ -191,10 +241,15 @@ def main():
         print(f"\nTesting on {input_type} with sliding window inference")
         print(f"Window length: {configs.input_motion_length}, Stride: 1, Batch size: {batch_size}")
         
-        log = {}
-        for metric in all_metrics:
-            log[metric] = 0
-        
+        # Per-sequence accumulators. skip-0 keeps every sequence; skip-N
+        # only sequences long enough for the sliced jitter to be valid.
+        seq_metrics_list = []
+        seq_filepaths = []
+        seq_lens = []
+        seq_metrics_skip_list = []
+        seq_filepaths_skip = []
+        seq_lens_skip = []
+
         # Process each motion sequence
         total = len(test_datas)
         t0 = time.time()
@@ -238,53 +293,83 @@ def main():
             upper_index = [3, 6, 9, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
             lower_index = [0, 1, 2, 4, 5, 7, 8, 10, 11]
             
-            # Calculate metrics
-            eval_log = {}
-            for metric in all_metrics:
-                eval_log[metric] = (
-                    get_metric_function(metric)(
-                        predicted_position,
-                        predicted_angle,
-                        predicted_root_angle,
-                        gt_position,
-                        gt_angle,
-                        gt_root_angle,
-                        upper_index,
-                        lower_index,
-                        fps=60,
-                    )
-                    .cpu()
-                    .numpy()
-                )
-            
-            # Accumulate metrics
-            for key in eval_log:
-                log[key] += eval_log[key]
+            # Skip-0 metrics on the full sequence. Values stored in display
+            # units (cm/deg/jitter) so the npz/csv don't depend on coeffs.
+            seq_len = pred_local_poses.shape[0]
+            eval_log = compute_seq_metrics(
+                predicted_position, predicted_angle, predicted_root_angle,
+                gt_position, gt_angle, gt_root_angle,
+                upper_index, lower_index, fps=60,
+            )
+            seq_metrics_list.append({
+                m: float(eval_log[m]) * metrics_coeffs[m] for m in all_metrics
+            })
+            seq_filepaths.append(str(motion_data["filepath"]))
+            seq_lens.append(seq_len)
 
-            # Save per-sequence metrics to disk for downstream analysis
-            if configs.save_output:
-                os.makedirs(configs.save_dir, exist_ok=True)
-                seq_metrics = {
-                    metric: float(eval_log[metric]) * metrics_coeffs[metric]
-                    for metric in all_metrics
-                }
-                output_path = os.path.join(configs.save_dir, f"{motion_idx+1}.pt")
-                torch.save({
-                    "filepath": motion_data["filepath"],
-                    "seq_len": pred_local_poses.shape[0],
-                    "metrics": seq_metrics,
-                }, output_path)
+            # Skip-N metrics on the same rollout, sliced. Guard with seq_len-3
+            # so jitter (3rd-order FD) still has at least one valid sample.
+            long_enough = skip_n > 0 and skip_n < seq_len - 3
+            if long_enough:
+                eval_log_skip = compute_seq_metrics(
+                    predicted_position[skip_n:], predicted_angle[skip_n:], predicted_root_angle[skip_n:],
+                    gt_position[skip_n:], gt_angle[skip_n:], gt_root_angle[skip_n:],
+                    upper_index, lower_index, fps=60,
+                )
+                seq_metrics_skip_list.append({
+                    m: float(eval_log_skip[m]) * metrics_coeffs[m] for m in all_metrics
+                })
+                seq_filepaths_skip.append(str(motion_data["filepath"]))
+                seq_lens_skip.append(seq_len)
 
         
-        # Add row to table with averaged metrics
-        tb.add_row([input_type] + 
-            ['%.2f' % (log[metric] / len(test_datas) * metrics_coeffs[metric]) for metric in pred_metrics] +
-            ['%.2f' % (log[metric] / len(test_datas) * metrics_coeffs[metric]) for metric in gt_metrics]
+        # Aggregate per-metric arrays from per-seq dicts.
+        def _avg(seqs, metric):
+            return float(np.mean([d[metric] for d in seqs])) if seqs else 0.0
+
+        # Add table rows with averaged metrics
+        tb.add_row([f"{input_type} (skip-0, n={len(seq_metrics_list)})"] +
+            ['%.2f' % _avg(seq_metrics_list, metric) for metric in pred_metrics + gt_metrics]
         )
+        if skip_n > 0 and seq_metrics_skip_list:
+            tb.add_row([f"{input_type} (skip-{skip_n}, n={len(seq_metrics_skip_list)})"] +
+                ['%.2f' % _avg(seq_metrics_skip_list, metric) for metric in pred_metrics + gt_metrics]
+            )
+
+        # Persist VR_Pose_Pred-style artifacts: one CSV (averaged) + one NPZ
+        # (per-seq arrays keyed by metric, plus filepath/seq_len) per skip
+        # variant per input_type.
+        if configs.save_output:
+            def _save(metrics_list, filepaths, lens, suffix):
+                if not metrics_list:
+                    return
+                npz_data = {
+                    m: np.array([d[m] for d in metrics_list], dtype=np.float64)
+                    for m in all_metrics
+                }
+                npz_data["filepath"] = np.array(filepaths)
+                npz_data["seq_len"] = np.array(lens, dtype=np.int64)
+                np.savez(
+                    os.path.join(eval_dir, f"eval_sw_{input_type}_seq{suffix}.npz"),
+                    **npz_data,
+                )
+                csv_path = os.path.join(eval_dir, f"eval_sw_{input_type}_avg{suffix}.csv")
+                with open(csv_path, "w", newline="") as f:
+                    writer = csv.writer(f)
+                    writer.writerow(["metric", "value"])
+                    for m in all_metrics:
+                        writer.writerow([m, f"{float(npz_data[m].mean()):.2f}"])
+
+            _save(seq_metrics_list, seq_filepaths, seq_lens, "")
+            if skip_n > 0 and seq_metrics_skip_list:
+                _save(
+                    seq_metrics_skip_list, seq_filepaths_skip, seq_lens_skip,
+                    f"_skip{skip_n}f",
+                )
     
     print("\n" + "="*80)
     print("Sliding Window Test Results")
-    print(f"Window Length: {configs.input_motion_length}, Stride: 1")
+    print(f"Window Length: {configs.input_motion_length}, Stride: 1, Skip-N: {skip_n}")
     print("="*80)
     print(tb)
 

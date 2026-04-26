@@ -1,11 +1,11 @@
-task: "hmd_poser_temporal_transformer"
+task: "hmd_poser_temporal_transformer_ap1"
 
 # Ablation: replace per-sensor LSTM with a causal Transformer temporal module
 model_name: "HMD_imu_HME_TemporalTransformer"
 dataset_path: "./datasets_processed/amass_p1/"
 support_dir: "./body_models/"
 # Filled automatically by run_ablation.py after training (checkpoint_latest.pt, epoch 400)
-resume_model: "/home/yy/Code/HMD-Poser/experiments/hmd_poser_temporal_transformer_2026-04-13-00-57-38/checkpoint_latest.pt"
+resume_model: "/home/yy/Code/HMD-Poser/experiments/hmd_poser_temporal_transformer_ap1_2026-04-13-00-57-38/checkpoint_latest.pt"
 manual_seed: null
 compatible_inputs: ['HMD']
 sparse_dim: 135

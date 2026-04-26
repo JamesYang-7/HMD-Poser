@@ -1,4 +1,4 @@
-task: "hmd_poser_no_spatial_mix"
+task: "hmd_poser_no_spatial_mix_ap1"
 
 # Capacity-matched ablation: replace the spatial Transformer with a stack of
 # per-sensor ResidualMLPBlock layers that have the same parameter count but
