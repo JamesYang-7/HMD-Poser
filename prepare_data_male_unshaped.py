@@ -165,8 +165,8 @@ def process_protocol1(args, bm_male, bm_female):
 
                 bdata_poses = bdata["poses"][::stride, ...]
                 bdata_trans = bdata["trans"][::stride, ...]
-                bdata_betas = np.zeros_like(bdata["betas"]) # bdata_betas = bdata["betas"]
-                subject_gender = 'male' # subject_gender = bdata["gender"]
+                bdata_betas = np.zeros_like(bdata["betas"]) # set to default. original: bdata_betas = bdata["betas"]
+                subject_gender = 'male' # set to male. original: subject_gender = bdata["gender"]
 
                 bm = bm_male if subject_gender == 'male' else bm_female
 

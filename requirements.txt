@@ -1,0 +1,19 @@
+torch
+
+# Core scientific stack
+numpy
+scipy
+
+# Training utilities
+tqdm
+tensorboard
+
+# Config / data handling
+PyYAML
+easydict
+
+# Output formatting
+prettytable
+
+# Logging
+loguru

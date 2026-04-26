@@ -1,5 +1,5 @@
 import torch
-from tqdm import tqdm
+import time
 import argparse
 from utils.utils_config import load_config
 from dataset.dataloader import load_data
@@ -174,8 +174,11 @@ def main():
 
     model = HMDIMUModel(configs, device)
     # Load trained model
-    with open("out_dir.txt", "r") as f:
-        configs.resume_model = f.readline().strip() + "/epoch_with_best_trainloss.pt"
+    if not configs.resume_model:
+        raise ValueError(
+            "resume_model is not set in the config file. "
+            "Set resume_model to the full path of the trained checkpoint (.pt file)."
+        )
     model.load(configs.resume_model)
     print(f"Successfully resumed checkpoint from {configs.resume_model}")
     model.eval()
@@ -193,7 +196,11 @@ def main():
             log[metric] = 0
         
         # Process each motion sequence
-        for motion_idx, motion_data in tqdm(enumerate(test_datas), total=len(test_datas)):
+        total = len(test_datas)
+        t0 = time.time()
+        for motion_idx, motion_data in enumerate(test_datas):
+            elapsed = time.time() - t0
+            print(f"  {motion_idx + 1}/{total}  elapsed={elapsed:.1f}s", flush=True)
             # Perform sliding window inference with batched processing
             pred_local_poses, pred_joint_positions, gt_local_pose, gt_positions = \
                 sliding_window_inference(
@@ -254,13 +261,20 @@ def main():
             for key in eval_log:
                 log[key] += eval_log[key]
 
+            # Save per-sequence metrics to disk for downstream analysis
             if configs.save_output:
+                os.makedirs(configs.save_dir, exist_ok=True)
+                seq_metrics = {
+                    metric: float(eval_log[metric]) * metrics_coeffs[metric]
+                    for metric in all_metrics
+                }
                 output_path = os.path.join(configs.save_dir, f"{motion_idx+1}.pt")
                 torch.save({
-                    "pred_local_pose": pred_local_poses,
-                    "predicted_position": predicted_position,
-                    'filepath': motion_data['filepath']
+                    "filepath": motion_data["filepath"],
+                    "seq_len": pred_local_poses.shape[0],
+                    "metrics": seq_metrics,
                 }, output_path)
+
         
         # Add row to table with averaged metrics
         tb.add_row([input_type] + 

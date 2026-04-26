@@ -19,9 +19,13 @@ def parse_args():
 def main():
     args = parse_args()
     configs = load_config(args.config)
-    out_dir, LOG, train_summary_writer = add_log(configs)
-    with open(f"out_dir.txt", "w") as f:
-        f.write(out_dir)
+
+    # If resuming an interrupted run, reuse the original experiment directory so
+    # that log, checkpoints, and snapshots all stay in one place across resumes.
+    resume_ckpt = getattr(configs, 'resume_checkpoint', None)
+    resume_log_dir = os.path.dirname(resume_ckpt) if resume_ckpt else None
+
+    out_dir, LOG, train_summary_writer = add_log(configs, log_dir=resume_log_dir)
     dst_file = os.path.join(out_dir, os.path.basename(args.config))
     os.system('cp {} {}'.format(args.config, dst_file))
     
@@ -110,7 +114,6 @@ def main():
     
     training_batches_per_epoch = len(train_dataloader)
     print("training_batches_per_epoch:", training_batches_per_epoch)
-    last_epoch = 0
     lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
         optimizer,
         [
@@ -126,10 +129,51 @@ def main():
                 warm_restart_duration=configs.lr_config.lr_warm_restart_duration * training_batches_per_epoch,
             ),
         ],
-        last_epoch=last_epoch * training_batches_per_epoch - 1,
+        last_epoch=-1,
     )
-    
-    train_loop(configs, device, model, loss_func, optimizer, lr_scheduler, train_dataloader, test_dataloader, LOG, train_summary_writer, out_dir)
+
+    '''
+    # ----------------------------------------
+    # resume from full training-state checkpoint (interruption recovery)
+    # ----------------------------------------
+    '''
+    start_epoch = 0
+    initial_best_metrics = None
+    initial_global_step = 0
+    if resume_ckpt:
+        LOG.info(f"Loading training state from {resume_ckpt}")
+        ckpt = HMDIMUModel.load_training_state(resume_ckpt, map_location=device)
+
+        # 1. network weights
+        model.get_bare_model(model.netG).load_state_dict(ckpt['state_dict'])
+
+        # 2. optimizer state — also move tensors to the correct device
+        optimizer.load_state_dict(ckpt['optimizer_state_dict'])
+        for state in optimizer.state.values():
+            for k, v in state.items():
+                if isinstance(v, torch.Tensor):
+                    state[k] = v.to(device)
+
+        # 3. LR scheduler state (restores internal step counter)
+        lr_scheduler.load_state_dict(ckpt['lr_scheduler_state_dict'])
+
+        # 4. epoch and best metrics
+        start_epoch = ckpt['epoch'] + 1
+        initial_best_metrics = ckpt.get('best_metrics')
+        initial_global_step = start_epoch * training_batches_per_epoch
+
+        if initial_best_metrics is not None:
+            LOG.info(f"Resuming training from epoch {start_epoch}/{configs.train_config.epochs}  "
+                     f"(best_train_loss={initial_best_metrics['best_train_loss']:.4f}  "
+                     f"best_MPJPE={initial_best_metrics['best_position']:.4f} cm)")
+        else:
+            LOG.info(f"Resuming training from epoch {start_epoch}/{configs.train_config.epochs}  "
+                     f"(no best_metrics in checkpoint — starting metric tracking from inf)")
+
+    train_loop(configs, device, model, loss_func, optimizer, lr_scheduler,
+               train_dataloader, test_dataloader, LOG, train_summary_writer, out_dir,
+               start_epoch=start_epoch, initial_best_metrics=initial_best_metrics,
+               initial_global_step=initial_global_step)
 
 
 if __name__ == "__main__":

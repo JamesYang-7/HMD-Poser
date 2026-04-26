@@ -8,8 +8,8 @@ def load_config(path):
         config = edict(yaml.safe_load(fin))
     return config
 
-def add_log(configs):
-    LOG = ConsoleLogger(configs.task, 'train')
+def add_log(configs, log_dir=None):
+    LOG = ConsoleLogger(configs.task, 'train', log_dir=log_dir)
     logdir = LOG.getLogFolder()
     LOG.info(configs)
     train_summary_writer = SummaryWriter(logdir, 'train')

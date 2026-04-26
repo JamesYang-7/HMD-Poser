@@ -1,1 +1,11 @@
+*__pycache__/
 results/
+legacy/
+data
+body_models
+datasets_processed
+experiments/
+human_body_prior/
+pretrained_model/
+*logs/
+*.pdf

@@ -1,0 +1,59 @@
+task: "hmd_poser_no_spatial_mix"
+
+# Capacity-matched ablation: replace the spatial Transformer with a stack of
+# per-sensor ResidualMLPBlock layers that have the same parameter count but
+# do not mix information across the 8 sensor tokens. Isolates the contribution
+# of cross-sensor attention from the effect of raw parameter budget.
+model_name: "HMD_imu_HME_NoSpatialMix"
+dataset_path: "./datasets_processed/amass_p1/"
+support_dir: "./body_models/"
+resume_model: null
+resume_checkpoint: null
+manual_seed: null
+compatible_inputs: ['HMD']
+sparse_dim: 135
+input_motion_length: 40
+train_dataset_repeat_times: 10
+
+model_params:
+  number_layer: 3
+  hidden_size: 256
+  dropout: 0.05
+  nhead: 8
+  block_num: 2
+
+train_config:
+  epochs: 400
+  val_interval: 10
+  snapshot_interval: 20
+  num_workers: 4
+  batch_size: 128
+  log_interval: 5
+
+optimizer_config:
+  optimizer: "adam"
+  momentum: 0.9
+  beta2: 0.999
+  weight_decay: 0
+  adam_eps: 0.000001
+  amsgrad: false
+
+lr_config:
+  lr: 0.001
+  lr_decay: [300]
+  lr_decay_factor: 0.1
+  lr_decay_epochs: 3
+  lr_warm_up_start_epoch: 0
+  lr_warm_up_epochs: 1
+  lr_warm_up_factor: 0.001
+  lr_warm_restarts: []
+  lr_warm_restart_duration: 0.5
+
+loss:
+  loss_type: 'l1'
+  root_orientation_weight: 1.0
+  local_pose_weight: 5.0
+  global_pose_weight: 1.0
+  joint_position_weight: 1.0
+  smooth_loss_weight: 0.5
+  shape_loss_weight: 0.1

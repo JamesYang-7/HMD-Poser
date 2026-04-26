@@ -1,0 +1,222 @@
+{
+  "_comment": "Machine-readable reference for HMD-Poser hyperparameters. Values match train_config.yaml and paper. Change here to track experiments.",
+
+  "model": {
+    "class": "HMD_imu_HME_Universe",
+    "wrapper": "HMDIMUModel",
+    "input_dim": 135,
+    "output_pose_dim": 132,
+    "output_shape_dim": 16,
+    "num_joints": 22,
+    "rotation_repr": "6d",
+
+    "backbone": {
+      "class": "TemporalSpatialBackbone",
+      "num_sensor_groups": 8,
+      "sensor_groups": ["head", "lhand", "rhand", "lfoot", "rfoot", "pelvis", "lhand_inhead", "rhand_inhead"],
+
+      "embedding": {
+        "activation": "LeakyReLU",
+        "hidden_size": 256,
+        "note": "Per-sensor MLPs embed sub-features to hidden_size/4 each, then concat + LayerNorm"
+      },
+
+      "tsfl_blocks": {
+        "block_num": 2,
+        "paper_ablation_best": 2,
+        "paper_ablation_note": "N=3 gives marginal MPJPE gain (3.18 vs 3.19) but N=2 chosen for efficiency"
+      },
+
+      "temporal_module": {
+        "type": "LSTM",
+        "layers": 1,
+        "hidden_size": 256,
+        "bidirectional": false,
+        "batch_first": true,
+        "weight_init": "orthogonal",
+        "weight_norm": true,
+        "note": "One independent LSTM per sensor group; unidirectional for real-time compatibility"
+      },
+
+      "spatial_module": {
+        "type": "TransformerEncoder",
+        "num_layers": 3,
+        "hidden_size": 256,
+        "nhead": 8,
+        "ffn_dim": 256,
+        "batch_first": true,
+        "note": "Applied over 8 sensor tokens per timestep; batch reshaped to (B*T, 8, hidden)"
+      }
+    },
+
+    "regression_heads": {
+      "pose_head": {
+        "layers": [
+          {"in": 2048, "out": 256, "activation": "LeakyReLU"},
+          {"in": 256, "out": 132, "activation": "none"}
+        ],
+        "note": "in=8*hidden_size=2048; out=22*6=132"
+      },
+      "shape_head": {
+        "layers": [
+          {"in": 2048, "out": 256, "activation": "LeakyReLU"},
+          {"in": 256, "out": 16, "activation": "none"}
+        ],
+        "inference_override": "zeroed to default shape at forward() line 125"
+      }
+    },
+
+    "body_model": {
+      "type": "SMPL+H",
+      "gender": "male",
+      "num_betas": 16,
+      "num_dmpls": 8,
+      "num_joints_used": 22,
+      "fps": 60,
+      "path_smplh": "body_models/smplh/male/model.npz",
+      "path_dmpls": "body_models/dmpls/male/model.npz"
+    }
+  },
+
+  "input_feature_map": {
+    "_comment": "0-based indices into the 135D input vector",
+    "head_rot6d":           [0, 6],
+    "lhand_rot6d":          [6, 12],
+    "rhand_rot6d":          [12, 18],
+    "lfoot_rot6d":          [18, 24],
+    "rfoot_rot6d":          [24, 30],
+    "pelvis_rot6d":         [30, 36],
+    "head_rotvel6d":        [36, 42],
+    "lhand_rotvel6d":       [42, 48],
+    "rhand_rotvel6d":       [48, 54],
+    "lfoot_rotvel6d":       [54, 60],
+    "rfoot_rotvel6d":       [60, 66],
+    "pelvis_rotvel6d":      [66, 72],
+    "head_pos3d":           [72, 75],
+    "lhand_pos3d":          [75, 78],
+    "rhand_pos3d":          [78, 81],
+    "head_vel3d":           [81, 84],
+    "lhand_vel3d":          [84, 87],
+    "rhand_vel3d":          [87, 90],
+    "lhand_inhead_rot6d":   [90, 96],
+    "rhand_inhead_rot6d":   [96, 102],
+    "lhand_inhead_rotvel6d":[102, 108],
+    "rhand_inhead_rotvel6d":[108, 114],
+    "lhand_inhead_pos3d":   [114, 117],
+    "rhand_inhead_pos3d":   [117, 120],
+    "lhand_inhead_vel3d":   [120, 123],
+    "rhand_inhead_vel3d":   [123, 126],
+    "lfoot_accel3d":        [126, 129],
+    "rfoot_accel3d":        [129, 132],
+    "pelvis_accel3d":       [132, 135]
+  },
+
+  "sensor_masking": {
+    "_comment": "Indices zeroed per scenario (Python list-of-int notation matches dataloader.py)",
+    "HMD_3IMUs": [],
+    "HMD_2IMUs": [30,31,32,33,34,35, 66,67,68,69,70,71, 132,133,134],
+    "HMD":       [18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,
+                  54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,
+                  126,127,128,129,130,131,132,133,134]
+  },
+
+  "loss": {
+    "type": "L1",
+    "weights": {
+      "root_orientation": 1.0,
+      "local_pose": 5.0,
+      "global_pose": 1.0,
+      "joint_position": 1.0,
+      "acceleration_smooth": 0.5,
+      "shape_consistency": 0.1
+    },
+    "shape_loss_target": "intra-sequence mean (not zero-mean prior)",
+    "position_alignment": "head-centered (joint 15 = head)"
+  },
+
+  "training": {
+    "epochs": 400,
+    "batch_size": 128,
+    "effective_batch_size": 384,
+    "window_length_frames": 40,
+    "dataset_repeat_times": 10,
+    "val_interval_epochs": 10,
+    "num_workers": 4,
+    "log_interval_batches": 5,
+
+    "optimizer": {
+      "type": "Adam",
+      "lr": 0.001,
+      "beta1": 0.9,
+      "beta2": 0.999,
+      "eps": 1e-6,
+      "weight_decay": 0,
+      "amsgrad": false
+    },
+
+    "lr_schedule": {
+      "warmup_start_epoch": 0,
+      "warmup_end_epoch": 1,
+      "warmup_start_factor": 0.001,
+      "constant_until_epoch": 300,
+      "decay_at_epoch": [300],
+      "decay_factor": 0.1,
+      "decay_duration_epochs": 3,
+      "final_lr": 0.0001
+    },
+
+    "checkpoints": {
+      "best_train_loss": "epoch_with_best_trainloss.pt",
+      "best_test_loss": "epoch_with_best_testloss.pt",
+      "format": {"state_dict": "...", "epoch": "int"}
+    },
+
+    "data": {
+      "dataset": "AMASS",
+      "framerate_hz": 60,
+      "protocols": {
+        "protocol1": {
+          "train_subsets": ["CMU", "BioMotionLab_NTroje", "MPI_HDM05"],
+          "test_subsets": ["CMU", "BioMotionLab_NTroje", "MPI_HDM05"],
+          "split": "90% train / 10% test"
+        },
+        "protocol2": {
+          "train_subsets": "12 AMASS subsets",
+          "test_subsets": ["HumanEva", "Transition"]
+        }
+      }
+    }
+  },
+
+  "evaluation": {
+    "metrics": {
+      "MPJRE": {"unit": "degrees", "joints": "all 22", "formula": "mean L1 wrapped axis-angle diff"},
+      "MPJPE": {"unit": "cm", "joints": "all 22", "formula": "mean Euclidean distance"},
+      "MPJVE": {"unit": "cm/s", "joints": "all 22", "formula": "mean Euclidean distance of velocity"},
+      "H-PE":  {"unit": "cm", "joints": [20, 21], "formula": "MPJPE on hand joints"},
+      "U-PE":  {"unit": "cm", "joints": "upper_index", "formula": "MPJPE on upper body"},
+      "L-PE":  {"unit": "cm", "joints": "lower_index", "formula": "MPJPE on lower body"},
+      "R-PE":  {"unit": "cm", "joints": [0], "formula": "MPJPE on root joint"},
+      "Jitter":{"unit": "10^m/s^3", "joints": "all 22", "formula": "mean norm of 3rd-order finite difference * fps^3"}
+    },
+    "position_alignment": "head-centered (subtract predicted head, add GT head; joint 15)",
+    "fps_for_velocity_metrics": 60,
+
+    "reported_results_protocol1": {
+      "HMD":      {"MPJRE": 2.28, "MPJPE": 3.19, "MPJVE": 17.47, "Jitter": 6.07, "H-PE": 1.65, "U-PE": 1.67, "L-PE": 5.40, "R-PE": 3.02},
+      "HMD+2IMUs":{"MPJRE": 1.83, "MPJPE": 2.27, "MPJVE": 13.28, "Jitter": 5.96, "H-PE": 1.39, "U-PE": 1.51, "L-PE": 3.35, "R-PE": 2.74},
+      "HMD+3IMUs":{"MPJRE": 1.73, "MPJPE": 1.89, "MPJVE": 11.03, "Jitter": 5.35, "H-PE": 1.27, "U-PE": 1.46, "L-PE": 2.46, "R-PE": 2.37}
+    },
+    "reported_results_protocol2": {
+      "HMD":      {"MPJRE": 4.27, "MPJPE": 5.44, "MPJVE": 30.15, "Jitter": 5.62, "H-PE": 2.56, "U-PE": 2.44, "L-PE": 9.77, "R-PE": 4.83},
+      "HMD+2IMUs":{"MPJRE": 3.66, "MPJPE": 3.68, "MPJVE": 20.29, "Jitter": 6.22, "H-PE": 1.65, "U-PE": 2.14, "L-PE": 5.92, "R-PE": 4.51},
+      "HMD+3IMUs":{"MPJRE": 3.49, "MPJPE": 3.13, "MPJVE": 16.17, "Jitter": 4.93, "H-PE": 1.81, "U-PE": 2.17, "L-PE": 4.51, "R-PE": 3.88}
+    },
+
+    "inference_speed": {
+      "GPU_RTX3080_fps": 205.7,
+      "PICO4_HMD_fps": 90.0,
+      "operating_frequency_hz": 60
+    }
+  }
+}

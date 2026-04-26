@@ -1,14 +1,24 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from model.network import HMD_imu_HME_Universe
+from model.network import (HMD_imu_HME_Universe,
+                            HMD_imu_HME_TemporalTransformer,
+                            HMD_imu_HME_SpatialOnly,
+                            HMD_imu_HME_TemporalOnly,
+                            HMD_imu_HME_NoTemporalMix,
+                            HMD_imu_HME_NoSpatialMix)
 from utils import utils_transform
 from human_body_prior.body_model.body_model import BodyModel
 import os
 from torch.nn.parallel import DataParallel, DistributedDataParallel
 
 model_wraps = {
-    "HMD_imu_HME_Universe": HMD_imu_HME_Universe,
+    "HMD_imu_HME_Universe":            HMD_imu_HME_Universe,
+    "HMD_imu_HME_TemporalTransformer": HMD_imu_HME_TemporalTransformer,
+    "HMD_imu_HME_SpatialOnly":         HMD_imu_HME_SpatialOnly,
+    "HMD_imu_HME_TemporalOnly":        HMD_imu_HME_TemporalOnly,
+    "HMD_imu_HME_NoTemporalMix":       HMD_imu_HME_NoTemporalMix,
+    "HMD_imu_HME_NoSpatialMix":        HMD_imu_HME_NoSpatialMix,
 }
 
 def forward_kinematics_R(R_local: torch.Tensor, parent):
@@ -118,6 +128,35 @@ class HMDIMUModel(nn.Module):
         network = self.get_bare_model(self.netG)
         torch.save({'state_dict': network.state_dict(),
             'epoch': epoch}, filename)
+
+    def save_training_state(self, epoch, optimizer, lr_scheduler, best_metrics, filename):
+        """Save full training state for interruption recovery.
+
+        Saved keys:
+          state_dict              — network weights
+          epoch                   — last *completed* epoch (0-indexed)
+          optimizer_state_dict    — Adam moment buffers and step counts
+          lr_scheduler_state_dict — LR schedule internal step counter
+          best_metrics            — dict with best_train_loss, best_test_loss,
+                                    best_position, best_local_pose
+        """
+        network = self.get_bare_model(self.netG)
+        torch.save({
+            'state_dict':               network.state_dict(),
+            'epoch':                    epoch,
+            'optimizer_state_dict':     optimizer.state_dict(),
+            'lr_scheduler_state_dict':  lr_scheduler.state_dict(),
+            'best_metrics':             best_metrics,
+        }, filename)
+
+    @staticmethod
+    def load_training_state(load_path, map_location='cpu'):
+        """Load a full training-state checkpoint written by save_training_state().
+
+        Returns the raw dict; the caller is responsible for restoring each
+        component (network weights, optimizer, scheduler, epoch counter).
+        """
+        return torch.load(load_path, map_location=map_location)
 
     def forward(self, sparse_input, do_fk=True):
         batch_size, time_length = sparse_input.shape[0], sparse_input.shape[1]

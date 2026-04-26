@@ -1,7 +1,6 @@
 import torch
 import os
 import time
-from tqdm import tqdm
 import numpy as np
 from utils import utils_transform
 import math
@@ -10,17 +9,26 @@ RADIANS_TO_DEGREES = 360.0 / (2 * math.pi)
 METERS_TO_CENTIMETERS = 100.0
 
 def train_loop(configs, device, model, loss_func, optimizer, \
-        lr_scheduler, train_loader, test_loader, LOG, train_summary_writer, out_dir):
-    global_step = 0
-    best_train_loss, best_test_loss, best_position, best_local_pose = float("inf"), float("inf"), float("inf"), float("inf")
-    for epoch in range(configs.train_config.epochs):
+        lr_scheduler, train_loader, test_loader, LOG, train_summary_writer, out_dir,
+        start_epoch=0, initial_best_metrics=None, initial_global_step=0):
+    global_step = initial_global_step
+    snapshots_dir = os.path.join(out_dir, "snapshots")
+    os.makedirs(snapshots_dir, exist_ok=True)
+    if initial_best_metrics is not None:
+        best_train_loss = initial_best_metrics['best_train_loss']
+        best_test_loss  = initial_best_metrics['best_test_loss']
+        best_position   = initial_best_metrics['best_position']
+        best_local_pose = initial_best_metrics['best_local_pose']
+    else:
+        best_train_loss, best_test_loss, best_position, best_local_pose = float("inf"), float("inf"), float("inf"), float("inf")
+    for epoch in range(start_epoch, configs.train_config.epochs):
         model.train()
         current_lr = optimizer.param_groups[0]['lr']
         LOG.info(f'Training epoch: {epoch + 1}/{configs.train_config.epochs}, LR: {current_lr:.6f}')
 
         one_epoch_root_loss, one_epoch_lpose_loss, one_epoch_gpose_loss, one_epoch_joint_loss, \
             one_epoch_acc_loss, one_epoch_shape_loss, one_epoch_total_loss = [], [], [], [], [], [], []
-        for batch_idx, (input_feat, gt_local_pose, gt_global_pose, gt_positions, gt_betas) in tqdm(enumerate(train_loader)):
+        for batch_idx, (input_feat, gt_local_pose, gt_global_pose, gt_positions, gt_betas) in enumerate(train_loader):
             global_step += 1
             optimizer.zero_grad()
             batch_start = time.time()
@@ -120,7 +128,7 @@ def train_loop(configs, device, model, loss_func, optimizer, \
                 one_epoch_acc_loss, one_epoch_shape_loss, one_epoch_total_loss = [], [], [], [], [], [], []
             position_error_, local_pose_error_ = [], []
             with torch.no_grad():
-                for _, (input_feat, gt_local_pose, gt_global_pose, gt_positions, gt_betas) in tqdm(enumerate(test_loader)):
+                for _, (input_feat, gt_local_pose, gt_global_pose, gt_positions, gt_betas) in enumerate(test_loader):
                     input_feat, gt_local_pose, gt_global_pose, gt_positions, gt_betas = input_feat.to(device).float(), \
                         gt_local_pose.to(device).float(), gt_global_pose.to(device).float(), \
                             gt_positions.to(device).float(), gt_betas.to(device).float()
@@ -222,3 +230,21 @@ def train_loop(configs, device, model, loss_func, optimizer, \
             if local_pose_error_ < best_local_pose:
                 best_local_pose = local_pose_error_
                 LOG.info("Lowest MPJRE_(including root) {} in epoch {}".format(best_local_pose, epoch+1))
+
+        # ── save full training state for interruption recovery ──────────────
+        # Written at the end of every epoch so resuming loses at most one epoch.
+        model.save_training_state(
+            epoch, optimizer, lr_scheduler,
+            {
+                'best_train_loss': best_train_loss,
+                'best_test_loss':  best_test_loss,
+                'best_position':   best_position,
+                'best_local_pose': best_local_pose,
+            },
+            os.path.join(out_dir, 'checkpoint_latest.pt'),
+        )
+
+        # ── periodic weights-only snapshot ─────────────────────────────────
+        if (epoch + 1) % configs.train_config.snapshot_interval == 0:
+            snap_path = os.path.join(snapshots_dir, f"checkpoint_ep{epoch + 1:04d}.pt")
+            model.save(epoch, snap_path)

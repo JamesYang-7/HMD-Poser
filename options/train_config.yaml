@@ -1,9 +1,10 @@
-task: "HMD_IMU_Human_Motion_Estimation"
+task: "hmd_poser"
 
 model_name: "HMD_imu_HME_Universe"
 dataset_path: "./datasets_processed/amass_p1/"
 support_dir: "./body_models/"
 resume_model: null
+resume_checkpoint: null  # path to checkpoint_latest.pt from an interrupted run
 manual_seed: null
 compatible_inputs: ['HMD'] 
 sparse_dim: 135
@@ -20,6 +21,7 @@ model_params:
 train_config:
   epochs: 400
   val_interval: 10
+  snapshot_interval: 20
   num_workers: 4
   batch_size: 128
   log_interval: 5

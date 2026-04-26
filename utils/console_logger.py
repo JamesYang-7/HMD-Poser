@@ -54,7 +54,7 @@ class CustomFormatter(logging.Formatter):
 class ConsoleLogger():
     """Console logger"""
 
-    def __init__(self, training_type, phase='train'):
+    def __init__(self, training_type, phase='train', log_dir=None):
         super().__init__()
 
         self._logger = logging.getLogger(training_type)
@@ -66,8 +66,11 @@ class ConsoleLogger():
         console_log.setFormatter(formatter)
         self._logger.addHandler(console_log)
 
-        time_str = time.strftime('%Y-%m-%d-%H-%M-%S')
-        self.logfile_dir = os.path.join('experiments/', training_type, time_str)
+        if log_dir is not None:
+            self.logfile_dir = log_dir
+        else:
+            time_str = time.strftime('%Y-%m-%d-%H-%M-%S')
+            self.logfile_dir = os.path.join('experiments/', f'{training_type}_{time_str}')
         if not os.path.exists(self.logfile_dir):
             try:
                 os.makedirs(self.logfile_dir)

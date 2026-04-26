@@ -60,10 +60,13 @@ def main():
 
     model = HMDIMUModel(configs, device)
     # Load trained model
-    with open("out_dir.txt", "r") as f:
-        configs.resume_model = f.readline().strip() + "/epoch_with_best_trainloss.pt"
+    if not configs.resume_model:
+        raise ValueError(
+            "resume_model is not set in the config file. "
+            "Set resume_model to the full path of the trained checkpoint (.pt file)."
+        )
     model.load(configs.resume_model)
-    print(f"successfully resume checkpoint in {configs.resume_model}")
+    print(f"Successfully resumed checkpoint from {configs.resume_model}")
     model.eval()
 
     if configs.save_output:

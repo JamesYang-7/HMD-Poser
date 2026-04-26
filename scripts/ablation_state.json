@@ -1,0 +1,80 @@
+{
+  "schema_version": 2,
+  "created_at": "2026-04-13 12:56:09",
+  "preflight_done": true,
+  "variants": {
+    "temporal_transformer": {
+      "status": "done",
+      "train_start_time": null,
+      "checkpoint_dir": "/home/yy/Code/HMD-Poser/experiments/hmd_poser_temporal_transformer_2026-04-13-00-57-38",
+      "checkpoint_path": "/home/yy/Code/HMD-Poser/experiments/hmd_poser_temporal_transformer_2026-04-13-00-57-38/checkpoint_latest.pt",
+      "train_retries": 0,
+      "eval_retries": 0,
+      "last_error": null,
+      "error_history": [],
+      "eval_table": "+------------+-------+-------+-------+--------+---------+---------+--------+-------------+-----------+\n| Input_type | mpjre | mpjpe | mpjve | handpe | upperpe | lowerpe | rootpe | pred_jitter | gt_jitter |\n+------------+-------+-------+-------+--------+---------+---------+--------+-------------+-----------+\n|    HMD     |  2.28 |  3.10 | 19.91 |  1.37  |   1.35  |   5.62  |  2.75  |    988.92   |   400.61  |\n+------------+-------+-------+-------+--------+---------+---------+--------+-------------+-----------+",
+      "eval_results": null
+    },
+    "spatial_only": {
+      "status": "done",
+      "train_start_time": "2026-04-13 13:01:51",
+      "checkpoint_dir": "/home/yy/Code/HMD-Poser/experiments/hmd_poser_spatial_only_2026-04-13-11-12-12",
+      "checkpoint_path": "/home/yy/Code/HMD-Poser/experiments/hmd_poser_spatial_only_2026-04-13-11-12-12/checkpoint_latest.pt",
+      "train_retries": 0,
+      "eval_retries": 0,
+      "last_error": null,
+      "error_history": [],
+      "eval_table": "+------------+-------+-------+-------+--------+---------+---------+--------+-------------+-----------+\n| Input_type | mpjre | mpjpe | mpjve | handpe | upperpe | lowerpe | rootpe | pred_jitter | gt_jitter |\n+------------+-------+-------+-------+--------+---------+---------+--------+-------------+-----------+\n|    HMD     |  2.33 |  3.17 | 30.58 |  1.47  |   1.38  |   5.76  |  2.73  |   2190.88   |   400.61  |\n+------------+-------+-------+-------+--------+---------+---------+--------+-------------+-----------+",
+      "eval_results": null
+    },
+    "temporal_only": {
+      "status": "done",
+      "train_start_time": "2026-04-13 21:35:29",
+      "checkpoint_dir": "/home/yy/Code/HMD-Poser/experiments/hmd_poser_temporal_only_2026-04-13-21-35-30",
+      "checkpoint_path": "/home/yy/Code/HMD-Poser/experiments/hmd_poser_temporal_only_2026-04-13-21-35-30/checkpoint_latest.pt",
+      "train_retries": 0,
+      "eval_retries": 0,
+      "last_error": null,
+      "error_history": [],
+      "eval_table": "+------------+-------+-------+-------+--------+---------+---------+--------+-------------+-----------+\n| Input_type | mpjre | mpjpe | mpjve | handpe | upperpe | lowerpe | rootpe | pred_jitter | gt_jitter |\n+------------+-------+-------+-------+--------+---------+---------+--------+-------------+-----------+\n|    HMD     |  2.85 |  4.01 | 31.49 |  2.49  |   1.87  |   7.10  |  3.42  |   1520.93   |   400.61  |\n+------------+-------+-------+-------+--------+---------+---------+--------+-------------+-----------+",
+      "eval_results": null
+    },
+    "original": {
+      "status": "done",
+      "train_start_time": "2026-04-14 03:41:13",
+      "checkpoint_dir": "/home/yy/Code/HMD-Poser/experiments/hmd_poser_original_2026-04-14-03-41-13",
+      "checkpoint_path": "/home/yy/Code/HMD-Poser/experiments/hmd_poser_original_2026-04-14-03-41-13/checkpoint_latest.pt",
+      "train_retries": 0,
+      "eval_retries": 0,
+      "last_error": null,
+      "error_history": [],
+      "eval_table": "+------------+-------+-------+-------+--------+---------+---------+--------+-------------+-----------+\n| Input_type | mpjre | mpjpe | mpjve | handpe | upperpe | lowerpe | rootpe | pred_jitter | gt_jitter |\n+------------+-------+-------+-------+--------+---------+---------+--------+-------------+-----------+\n|    HMD     |  2.27 |  3.06 | 18.33 |  1.40  |   1.34  |   5.54  |  2.71  |    656.50   |   400.61  |\n+------------+-------+-------+-------+--------+---------+---------+--------+-------------+-----------+",
+      "eval_results": null
+    },
+    "no_temporal_mix": {
+      "status": "done",
+      "train_start_time": "2026-04-14 15:34:02",
+      "checkpoint_dir": "/home/yy/Code/HMD-Poser/experiments/hmd_poser_no_temporal_mix_2026-04-14-15-34-02",
+      "checkpoint_path": "/home/yy/Code/HMD-Poser/experiments/hmd_poser_no_temporal_mix_2026-04-14-15-34-02/checkpoint_latest.pt",
+      "train_retries": 0,
+      "eval_retries": 0,
+      "last_error": null,
+      "error_history": [],
+      "eval_table": "+------------+-------+-------+-------+--------+---------+---------+--------+-------------+-----------+\n| Input_type | mpjre | mpjpe | mpjve | handpe | upperpe | lowerpe | rootpe | pred_jitter | gt_jitter |\n+------------+-------+-------+-------+--------+---------+---------+--------+-------------+-----------+\n|    HMD     |  2.38 |  3.23 | 32.79 |  1.28  |   1.34  |   5.95  |  2.77  |   2441.73   |   400.61  |\n+------------+-------+-------+-------+--------+---------+---------+--------+-------------+-----------+",
+      "eval_results": null
+    },
+    "no_spatial_mix": {
+      "status": "done",
+      "train_start_time": "2026-04-15 13:30:06",
+      "checkpoint_dir": "/home/yy/Code/HMD-Poser/experiments/hmd_poser_no_spatial_mix_2026-04-15-13-30-07",
+      "checkpoint_path": "/home/yy/Code/HMD-Poser/experiments/hmd_poser_no_spatial_mix_2026-04-15-13-30-07/checkpoint_latest.pt",
+      "train_retries": 0,
+      "eval_retries": 0,
+      "last_error": null,
+      "error_history": [],
+      "eval_table": "+------------+-------+-------+-------+--------+---------+---------+--------+-------------+-----------+\n| Input_type | mpjre | mpjpe | mpjve | handpe | upperpe | lowerpe | rootpe | pred_jitter | gt_jitter |\n+------------+-------+-------+-------+--------+---------+---------+--------+-------------+-----------+\n|    HMD     |  2.90 |  4.24 | 32.38 |  2.65  |   1.96  |   7.54  |  3.63  |   1417.98   |   400.61  |\n+------------+-------+-------+-------+--------+---------+---------+--------+-------------+-----------+",
+      "eval_results": null
+    }
+  },
+  "summary_generated": true
+}
