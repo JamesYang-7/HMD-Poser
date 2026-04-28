@@ -3,7 +3,7 @@ task: "hmd_poser_ap1"
 model_name: "HMD_imu_HME_Universe"
 dataset_path: "./datasets_processed/amass_p1/"
 support_dir: "./body_models/"
-resume_model: 'path_of_trained_model' ##### to be filled in when testing #####
+resume_model: './experiments/hmd_poser_original_ap1_2026-04-14-03-41-13/checkpoint_latest.pt'
 manual_seed: null
 compatible_inputs: ['HMD'] 
 sparse_dim: 135

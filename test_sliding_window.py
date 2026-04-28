@@ -50,15 +50,15 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True, help="Path, where config file is stored")
     parser.add_argument(
-        "--skip-frames", type=int, default=-1,
+        "--skip-frames", type=int, default=79,
         help="Drop the first N frames of every sequence before computing a "
              "second 'skip-N' aggregate alongside the always-on skip-0 "
              "(full-sequence) aggregate. Both share the same model rollout. "
              "Sequences with seq_len <= N+3 are excluded from the skip-N "
-             "aggregate but remain in skip-0. Default -1 auto-picks "
-             "input_motion_length - 1 (the warm-up frames before sliding "
-             "window starts producing single-frame predictions). Pass 0 to "
-             "disable the secondary aggregate.",
+             "aggregate but remain in skip-0. Default 79 matches VR_Pose_Pred's "
+             "skip-N protocol (2*(tws+twl) - 1 - mcs at 60 FPS) for "
+             "cross-paper comparability. Pass 0 to disable the secondary "
+             "aggregate.",
     )
     args = parser.parse_args()
     return args
@@ -205,8 +205,6 @@ def main():
         input_motion_length=configs.input_motion_length)
 
     skip_n = args.skip_frames
-    if skip_n < 0:
-        skip_n = configs.input_motion_length - 1
     print(f"Skip-N eval: N = {skip_n} (skip-0 always reported)")
 
     model = HMDIMUModel(configs, device)

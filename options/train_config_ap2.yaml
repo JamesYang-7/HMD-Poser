@@ -2,3 +2,4 @@ _inherit: train_config.yaml
 
 task: "hmd_poser_ap2"
 dataset_path: "./datasets_processed/amass_p2/"
+resume_checkpoint: "./experiments/hmd_poser_ap2_2026-04-26-15-18-06/checkpoint_latest.pt"
