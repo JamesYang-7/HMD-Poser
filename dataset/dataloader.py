@@ -33,6 +33,7 @@ def load_data(dataset_path, split, **kwargs):
         gt_global_pose = data["rotation_global_full_gt_list"]
         gt_positions = data["position_global_full_gt_world"]
         gt_betas = data["body_parms_list"]['betas'][1:]
+        gt_trans = data["body_parms_list"]['trans'][1:]
         tmp_data_list.append(gt_local_pose)
         valid_motion_data.append({
             'input_feat': input_feat,
@@ -40,6 +41,7 @@ def load_data(dataset_path, split, **kwargs):
             'gt_global_pose': gt_global_pose,
             'gt_positions': gt_positions,
             'gt_betas': gt_betas,
+            'gt_trans': gt_trans,
             'filepath': data['filepath']
         })
     return valid_motion_data
